@@ -1,0 +1,188 @@
+# data model segments
+- segment: &shape Location hierarchy
+- segment: &population Population
+- segment: &survey Survey data
+- segment: &programme Programme data
+- segment: &ancss ANC sentinel surveillance
+
+# Tables and columns
+- table: Areas
+  segment: *shape
+  columns:
+    Country:
+    Area ID:
+    Admin 1:
+    Admin 2:
+    DHIS ID:
+    PEPFAR ID:
+    Geometry:
+# Note: Probably should switch this to a 'long'
+#       location hierarchy format.
+
+- table: Population sources
+  segment: *population
+  columns: 
+    Source ID: {key: yes}
+    Description:
+    Reference:
+    
+- table: Population raw
+  segment: *population
+  columns:
+    Area ID:
+    Source ID: {key: yes, ref: Population sources}
+    Period: {key: yes}
+    Sex: {key: yes}
+    Age start: {key: yes}
+    Age span: {key: yes}
+    Population:
+# Note: with a more flexible location hierarchy model, 
+#       could join to Areas table
+ 
+- table: Population
+  segment: *population
+  columns:
+    Area ID: {key: yes, ref: Areas}
+    Period:
+    Sex:
+    Age group:
+    Population:
+    
+- table: Master facility list
+  segment: *programme
+  columns:
+    Facility ID: {key: yes}
+    Area ID: {ref: Areas}
+    Latitude:
+    Longitude:
+    Facility type:
+# Note: what other facility level indicators
+
+
+- table: ANC testing
+  segment: *programme
+  columns:
+    Facility ID: {key: yes, ref: Master facility list}
+    Period: {key: yes}
+    Age start: {key: yes}
+    Age span: {key: yes}
+    Clients:
+    Known positive:
+    HIV tested:
+    HIV positive:
+    Already ART:
+
+- table: ART delivery
+  segment: *programme
+  columns:
+   Facility ID: {key: yes, ref: Master facility list}
+   Period: {key: yes}
+   Sex: {key: yes}
+   Age group: {key: yes}
+   On ART:
+   New clients:
+   Died:
+   Disengaged:
+
+# - table: HIV testing
+#   segment: *programme
+#   columns:
+#     Facility or Area???:
+#     Period: {key: yes}
+#     Number tested:
+#     HIV positive:
+    
+- table: Survey metadata
+  segment: *survey
+  columns:
+    Survey ID: {key: yes}
+    Country:
+    Survey Year:
+    Start Date:
+    End Date:
+    Female age:
+    Male age:
+    Report reference:
+    Microdata reference:
+    Notes:
+
+
+- table: Survey clusters
+  segment: *survey
+  columns: 
+    Survey ID: {key: yes, ref: Survey metadata}
+    Cluster ID: {key: yes}
+    Stratum:
+    Residence type:
+    Latitude:
+    Longitude:
+    Area ID: {ref: Areas}
+# Note: Lat/Long might fall outside area ID
+#   due to geomasking. Suggestion for warning
+#   based on distance rather than check constraint.
+    
+    
+- table: RITA metadata
+  segment: *survey
+  columns:
+    Survey ID: {key: yes, ref: Survey metadata}
+    Assay:
+    Algorithm:
+    MDRI:
+    MDRI SE:
+    FRR:
+    FRR SE:
+    VL threshold:
+    ARVs tested:
+
+- table: Individual data
+  segment: *survey
+  columns:
+    Survey ID: {key: yes, ref: Survey clusters}
+    Cluster ID: {ref: Survey clusters}
+    Individual ID: {key: yes}
+    Sex:
+    Age:
+    DOB:
+    HIV status:
+    ART:
+    ARV biomarker:
+    VLS:
+    Ever tested:
+    Aware:
+    Ever had sex:
+    Age first sex:
+    Birth period: 
+    Circumcised:
+
+# - table: Birth history
+#   segment: *survey
+#   columns:
+#     Survey ID: {key: yes, ref: Individual data}
+#     Individual ID: {key: yes, ref: Individual data}
+#     Birth ID: {key: yes}
+#     Child DOB: 
+#     Child alive:
+#     Age at death:
+#     Breastfeeding:
+# # Check constraint: is female, age 10-49
+
+# - table: ANC-SS metadata
+#   segment: *ancss
+#   columns:
+#     Survey ID: {key: yes}
+#     Year:
+#     HIV testing algorithm:
+#     Report reference:
+#     Microdata reference:
+#     Notes:
+
+# - table: ANC-SS data
+#   segment: *ancss
+#   columns:
+#     Survey ID: {key: yes, ref: ANC-SS metadata}
+#     Facility ID: {key: yes, ref: Master facility list}
+#     Age start: {key: yes}
+#     Age span: {key: yes}
+#     Sample size:
+#     HIV positive:
