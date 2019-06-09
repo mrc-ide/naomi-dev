@@ -65,13 +65,9 @@ mfl_missing <- data.frame(site = c("pace clinic",
 
 mfl <- bind_rows(mfl, mfl_missing)
 
-setdiff(tolower(artdat$site), mfl$site)
-setdiff(tolower(ancrt$site), mfl$site)
-filter(mfl, duplicated(site))
 
 #' # Read programme data
 
-setdiff(artlong$site_id, mfl$site_id)
 
 artdat <- here("data-raw", "programme", "Malawi_ART_sites_alive_2004-2019.xlsx") %>%
   readxl::read_excel() %>%
@@ -83,6 +79,9 @@ artdat <- here("data-raw", "programme", "Malawi_ART_sites_alive_2004-2019.xlsx")
          year = type.convert(substr(quarter, 1, 4)),
          quarter = type.convert(substr(quarter, 7, 7)))
 
+artdat %>%
+  filter(!site_id %in% mfl$site_id) %>%
+  count(year)
 
 artdat <- artdat %>% left_join(mfl %>% rename(district28 = district))
 
@@ -136,7 +135,7 @@ artdat <- artdat %>%
          quarter = paste0(year, " Q", quarteri),
          prop15pl = approx(prop15pl$period, prop15pl$prop15pl, period, rule = 2)$y) %>%
   mutate(art15pl = onart * prop15pl,
-         distrct = district28) %>%
+         district = district28) %>%
   group_by(district, district32, year, quarter, quarteri) %>%
   summarise(art_tot= sum(onart),
             art15pl = sum(art15pl))
@@ -391,6 +390,7 @@ ancrt <- ancrt %>%
 ancrt <- ancrt %>%
   ungroup %>%
   right_join(sh32 %>% as.data.frame %>% select(district, district32, area_id), .)
+
 artdat <- artdat %>%
   ungroup %>%
   right_join(sh32 %>% as.data.frame %>% select(district, district32, area_id), .)
