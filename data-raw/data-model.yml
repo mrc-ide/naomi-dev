@@ -144,16 +144,23 @@
     Sex:
     Age:
     DOB:
-    HIV status:
-    ART:
-    ARV biomarker:
-    VLS:
     Ever tested:
     Aware:
+    ART self-report:
     Ever had sex:
     Age first sex:
-    Birth period: 
+#    Birth period: 
     Circumcised:
+
+- table: HIV biomarker data
+  segment: *survey
+  columns:
+    Survey ID: {key: yes, ref: Individual data}
+    Individual ID: {key: yes, ref: Individual data}
+    HIV status:
+    VLS:
+    ARV biomarker:
+    Recent infection:
 
 # - table: Birth history
 #   segment: *survey

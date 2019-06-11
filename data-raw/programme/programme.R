@@ -170,9 +170,9 @@ ancrt18 <- readxl::read_excel("Malawi_ANC_PMTCT_2017_1_2018_3.xlsx") %>%
 
 ancrt <- here::here("data-raw", "programme", "mw_ancrt_2018-10-26.rds") %>%
   readRDS %>%
-  "names<-"(tolower(names(.))) %>%
+  rename_all(tolower) %>%
   mutate(site = tolower(site)) %>%
-  left_join(mfl %>% select(site = site_mfl, district, district32)) %>%
+  left_join(mfl %>% select(site = site, district, district32)) %>%
   group_by(district, district32, year, quarter) %>%
   summarise(anc_clients = sum(anc_clients, na.rm=TRUE),
             ancrt_n = sum(prev_neg+new_neg+prev_pos+new_pos, na.rm=TRUE),

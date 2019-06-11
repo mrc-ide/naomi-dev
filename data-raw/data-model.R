@@ -11,3 +11,13 @@ graph <- dm_create_graph(dm, rankdir = "BT")
 
 dm_render_graph(graph)
 dm_export_graph(graph, here("data-raw", "data-model.png"), file_type = "png")
+
+
+
+dm <- here("data-raw", "data-model-full.yml") %>%
+  dm_read_yaml()
+
+graph <- dm_create_graph(dm, rankdir = "BT")
+
+dm_render_graph(graph)
+dm_export_graph(graph, here("data-raw", "data-model-full.png"), file_type = "png")

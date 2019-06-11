@@ -48,3 +48,32 @@ The directory `data` contains processed data inputs:
     hierarchy and various age/sex stratifications.
   - `data/programme.rda`: aggregated area-level data for ART and ANC-RT
     by quarter.
+
+## Prepare model inputs
+
+#### Load packages
+
+``` r
+library(tidyverse)
+library(here)
+library(sf)
+library(rstan)
+```
+
+#### Load functions
+
+``` r
+source(here("R/car.R"))
+source(here("R/art-attendance.R"))
+```
+
+#### Load data
+
+``` r
+load(here("data/shapefile.rda"))
+load(here("data/population.rda"))
+load(here("data/survey.rda"))
+load(here("data/programme.rda"))
+```
+
+## Prepare model inputs
