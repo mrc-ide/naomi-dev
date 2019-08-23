@@ -4,13 +4,34 @@ template<class Type>
 Type objective_function<Type>::operator() ()
 {
 
+  // ** Data **
+
+  // Population
+  DATA_VECTOR(pop15pl_i);
+  
+  // Design matrices 
+
   DATA_MATRIX(X_rho);
   DATA_MATRIX(X_rho_anc);
   DATA_MATRIX(X_alpha);
   DATA_MATRIX(X_alpha_anc);
   DATA_MATRIX(Zu);
 
+  // Precision matrix for ICAR area model
   DATA_MATRIX(Q);
+
+  // ART attendance model
+  DATA_INTEGER(n_area);
+  DATA_IVECTOR(n_nb);
+  DATA_IVECTOR(adj_i);
+  DATA_IVECTOR(adj_j);
+  DATA_IVECTOR(adj_idx_ij);
+  DATA_IVECTOR(adj_idx_ji);
+
+  DATA_VECTOR(gamma_or_mu);
+  DATA_VECTOR(gamma_or_sigma);
+  
+  // Likelihood data 
 
   DATA_IVECTOR(idx_prev)
   DATA_VECTOR(l_prev);
@@ -32,6 +53,7 @@ Type objective_function<Type>::operator() ()
   DATA_VECTOR(n_artnum);
   DATA_VECTOR(x_artnum);
 
+  // ** Parameters **
   
   PARAMETER(log_sigma_rho);
   PARAMETER(logit_phi_rho);
@@ -40,8 +62,7 @@ Type objective_function<Type>::operator() ()
 
   PARAMETER(log_sigma_rho_anc);
   PARAMETER(log_sigma_alpha_anc);
-
-
+  
   PARAMETER_VECTOR(beta_rho);
   PARAMETER_VECTOR(beta_alpha);
   PARAMETER_VECTOR(beta_rho_anc);
@@ -55,6 +76,11 @@ Type objective_function<Type>::operator() ()
   PARAMETER_VECTOR(ui_rho_anc_raw);
   PARAMETER_VECTOR(ui_alpha_anc_raw);
 
+  // ART attendance parameters
+  PARAMETER_VECTOR(oddsratio_gamma_art);
+
+  
+  // ** Negative log posterior **
   
   // initialize nll
   Type val(0);
@@ -96,6 +122,9 @@ Type objective_function<Type>::operator() ()
   val -= sum(dnorm(ui_alpha_anc_raw, 0.0, 1.0, true));
 
 
+  // ART attendance model priors
+  val -= sum(dnorm(oddsratio_gamma_art, gamma_or_mu, gamma_or_sigma, true));
+
   // likelihood
   vector<Type> u_rho(exp(log_sigma_rho) * (sqrt(phi_rho) * us_rho_raw + sqrt(1 - phi_rho) * ui_rho_raw));
   vector<Type> u_alpha(exp(log_sigma_alpha) * (sqrt(phi_alpha) * us_alpha_raw + sqrt(1 - phi_alpha) * ui_alpha_raw));
@@ -109,8 +138,44 @@ Type objective_function<Type>::operator() ()
   vector<Type> mu_rho_anc(mu_rho + X_rho_anc * beta_rho_anc + Zu * u_rho_anc);
   vector<Type> mu_alpha_anc(mu_alpha + X_alpha_anc * beta_alpha_anc + Zu * u_alpha_anc);
 
-  vector<Type> mu_prop_art(invlogit(mu_rho) * invlogit(mu_alpha));
-  mu_prop_art = logit(mu_prop_art);
+  vector<Type> prop_art(invlogit(mu_rho) * invlogit(mu_alpha));
+  vector<Type> mu_prop_art(logit(prop_art));
+
+
+  // ** ART attendance model **
+
+  vector<Type> gamma_art(adj_i.size());
+  int cum_nb = 0; 
+  for(int i = 0; i < n_area; i++){
+    Type cum_exp_or_gamma_i = 1.0;
+    for(int j = 0; j < n_nb[i]; j++)
+      cum_exp_or_gamma_i += gamma_art[cum_nb + i + j] = exp(oddsratio_gamma_art[cum_nb + j]);
+    for(int j = 0; j < n_nb[i]; j++)
+      gamma_art[cum_nb + i + j] /= cum_exp_or_gamma_i;
+    gamma_art[cum_nb + i + n_nb[i]] = 1.0 / cum_exp_or_gamma_i;
+    cum_nb += n_nb[i];
+  }
+
+  vector<Type> A_i(pop15pl_i * prop_art);
+  vector<Type> Atilde_j(n_area);
+  vector<Type> sd_Atilde_j(n_area);
+  for(int i = 0; i < n_area; i++)
+    Atilde_j[i] = sd_Atilde_j[i] = 0.0;
+
+  for(int i = 0; i < adj_i.size(); i++){
+    int res_idx = adj_i[i];
+    int fac_idx = adj_j[i];
+    Type p_art_ij = prop_art[res_idx] * gamma_art[i];
+    Type A_ij = pop15pl_i[res_idx] * p_art_ij;
+    Atilde_j[fac_idx] += A_ij;
+    sd_Atilde_j[fac_idx] += A_ij * (1 - p_art_ij);
+  }
+
+  for(int i = 0; i < n_area; i++)
+    sd_Atilde_j[i] = sqrt(sd_Atilde_j[i]);
+
+  
+  // likelihood 
 
   for(int i = 0; i < idx_prev.size(); i++)
     val -= dnorm(l_prev[i], mu_rho[idx_prev[i]], l_prev_se[i], true);
@@ -124,8 +189,10 @@ Type objective_function<Type>::operator() ()
   for(int i = 0; i < idx_artcov_anc.size(); i++)
     val -= dbinom_robust(x_artcov_anc[i], n_artcov_anc[i],  mu_alpha_anc[idx_artcov_anc[i]], true);
 
+  // for(int i = 0; i < idx_artnum.size(); i++)
+  //   val -= dbinom_robust(x_artnum[i], n_artnum[i],  mu_prop_art[idx_artnum[i]], true);
   for(int i = 0; i < idx_artnum.size(); i++)
-    val -= dbinom_robust(x_artnum[i], n_artnum[i],  mu_prop_art[idx_artnum[i]], true);
+    val -= dnorm(x_artnum[i], Atilde_j[idx_artnum[i]], sd_Atilde_j[idx_artnum[i]], true);
 
   REPORT(mu_rho);
   REPORT(mu_alpha);
@@ -135,6 +202,10 @@ Type objective_function<Type>::operator() ()
   ADREPORT(mu_rho_anc);
   ADREPORT(mu_alpha_anc);
   ADREPORT(mu_prop_art);
+  ADREPORT(gamma_art);
+  ADREPORT(A_i);
+  ADREPORT(Atilde_j);
+  ADREPORT(sd_Atilde_j);
 
   return val;
 }
